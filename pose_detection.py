@@ -47,7 +47,16 @@ def process_video(video_path, output_path=None):
             max_indices = areas.argsort()[-num_boxes:][::-1]  # 获取最大的两个索引
             
             # 为两个人设置不同的颜色
-            colors = [(0, 255, 0), (255, 0, 0)]  # 绿色和蓝色
+            colors = [(0, 0, 255), (255, 0, 0)]  # 红色和蓝色
+
+            if num_boxes == 2:
+                # 获取两个边界框的x坐标（使用边界框的中心点x坐标）
+                box1_center_x = (boxes[max_indices[0]][0] + boxes[max_indices[0]][2]) / 2
+                box2_center_x = (boxes[max_indices[1]][0] + boxes[max_indices[1]][2]) / 2
+                
+                # 根据x坐标排序，确保左边的框对应索引0，右边的框对应索引1
+                if box1_center_x > box2_center_x:
+                    max_indices = max_indices[::-1]  # 交换两个索引的顺序
             
             # 绘制骨架连接定义
             skeleton = [[16,14],[14,12],[17,15],[15,13],[12,13],[6,12],[7,13],[6,7],
@@ -55,7 +64,14 @@ def process_video(video_path, output_path=None):
             
             # 为每个选中的人绘制姿态
             for idx, box_idx in enumerate(max_indices):
-                color = colors[idx]
+                
+                color = colors[idx]  # 现在左边的人一定是红色(idx=0)，右边的人一定是蓝色(idx=1)
+                
+                # 获取边界框中心点x坐标（用于调试）
+                box_center_x = (boxes[box_idx][0] + boxes[box_idx][2]) / 2
+                
+                # 可以添加标签显示位置（可选）
+                position_label = "Left" if idx == 0 else "Right"                
                 
                 # 绘制边界框
                 box = boxes[box_idx]
