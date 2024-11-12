@@ -5,7 +5,8 @@ import numpy as np
 
 def process_video(video_path, output_path=None):
     # 加载YOLOv8姿态检测模型
-    model = YOLO('yolov8n-pose.pt')  # 或者使用 yolov8s-pose.pt, yolov8m-pose.pt, yolov8l-pose.pt, yolov8x-pose.pt
+    
+    model = YOLO("yolo11n-pose.pt")  # load an official model
 
     # 打开视频文件
     cap = cv2.VideoCapture(video_path)
@@ -31,9 +32,60 @@ def process_video(video_path, output_path=None):
 
         # 运行YOLOv8推理
         results = model.predict(frame, conf=0.5)
+        result = results[0]
         
-        # 在帧上绘制结果
-        annotated_frame = results[0].plot()
+        # 获取原始图像的副本
+        annotated_frame = frame.copy()
+        
+        if len(result.boxes) > 0:
+            # 计算每个边界框的面积
+            boxes = result.boxes.xyxy.cpu().numpy()  # 获取边界框坐标
+            areas = (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])  # 计算面积
+            
+            # 找到两个最大边界框的索引
+            num_boxes = min(2, len(areas))  # 确保不超过检测到的人数
+            max_indices = areas.argsort()[-num_boxes:][::-1]  # 获取最大的两个索引
+            
+            # 为两个人设置不同的颜色
+            colors = [(0, 255, 0), (255, 0, 0)]  # 绿色和蓝色
+            
+            # 绘制骨架连接定义
+            skeleton = [[16,14],[14,12],[17,15],[15,13],[12,13],[6,12],[7,13],[6,7],
+                       [6,8],[7,9],[8,10],[9,11],[2,3],[1,2],[1,3],[2,4],[3,5],[4,6],[5,7]]
+            
+            # 为每个选中的人绘制姿态
+            for idx, box_idx in enumerate(max_indices):
+                color = colors[idx]
+                
+                # 绘制边界框
+                box = boxes[box_idx]
+                cv2.rectangle(annotated_frame, 
+                            (int(box[0]), int(box[1])), 
+                            (int(box[2]), int(box[3])), 
+                            color, 2)
+                
+                # 绘制关键点和骨架
+                if result.keypoints is not None:
+                    keypoints = result.keypoints[box_idx].data.cpu().numpy()[0]
+                    
+                    # 绘制关键点
+                    for kp in keypoints:
+                        x, y, conf = kp
+                        if conf > 0.5:  # 只绘制置信度高的关键点
+                            cv2.circle(annotated_frame, (int(x), int(y)), 5, color, -1)
+                    
+                    # 绘制骨架连接
+                    for connection in skeleton:
+                        kp1, kp2 = connection
+                        if keypoints[kp1-1][2] > 0.5 and keypoints[kp2-1][2] > 0.5:
+                            pt1 = (int(keypoints[kp1-1][0]), int(keypoints[kp1-1][1]))
+                            pt2 = (int(keypoints[kp2-1][0]), int(keypoints[kp2-1][1]))
+                            cv2.line(annotated_frame, pt1, pt2, color, 2)
+                
+                # 添加标签（可选）
+                cv2.putText(annotated_frame, f'Person {idx+1}', 
+                          (int(box[0]), int(box[1]-10)), 
+                          cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
 
         # 显示处理后的帧
         cv2.imshow("YOLOv8 姿态检测", annotated_frame)
