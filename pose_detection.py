@@ -9,7 +9,7 @@ def process_video(video_path, output_path=None):
     model = YOLO("yolo11n-pose.pt")  # load an official model
 
     # 打开视频文件
-    cap = cv2.VideoCapture(video_path)
+    cap = cv2.VideoCapture("videos\WeChat_20241112154837.mp4")
     if not cap.isOpened():
         print("错误：无法打开视频文件")
         return
